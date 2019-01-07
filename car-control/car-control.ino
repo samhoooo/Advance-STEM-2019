@@ -18,11 +18,10 @@ void setup() {
   pinMode(ENABLE, OUTPUT);
   pinMode(SAIN1, OUTPUT);
   pinMode(SAIN2, OUTPUT);
+  start();
 }
 
 void loop() {
-  start();
-
   // illustration of car motor control functions
   forward();
   delay(1000);
@@ -31,11 +30,12 @@ void loop() {
   left();
   delay(1000);
   right();
+  delay(1000);
 }
 
 void clockwise(int pin1, int pin2) {
   digitalWrite(pin2, LOW);
-  analogWrite(pin1, pwm50); // pwm ratio 50%
+  analogWrite(pin1, pwm50); 
 }
 
 void antiClockwise(int pin1, int pin2) {
