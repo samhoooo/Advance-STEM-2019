@@ -1,7 +1,7 @@
 // pins
 const int ENABLE = 13;
-const int SAIN1 = 12; // motor A
-const int SAIN2 = 11;
+const int SAIN1 = 11; // motor A
+const int SAIN2 = 12;
 const int SBIN1 = 10; // motor B
 const int SBIN2 = 8;
 const int SCIN1 = 6;  // motor C
@@ -10,14 +10,22 @@ const int SDIN1 = 5;  // motor D
 const int SDIN2 = 4;
 
 // PWM values
-const int pwm50 = 127;  // PWM 50%
-const int pwm80 = 204; // PWM 80%
+const int pwm0 = 0; //PWM 0%
+const int speed = 30; // 0-255 (higher means faster)
 
 void setup() {
-  // put your setup code here, to run once:
+  // Initialize digital pins
   pinMode(ENABLE, OUTPUT);
-  pinMode(SAIN1, OUTPUT);
   pinMode(SAIN2, OUTPUT);
+  pinMode(SBIN2, OUTPUT);
+  pinMode(SCIN2, OUTPUT);
+  pinMode(SDIN2, OUTPUT);
+
+  // Initialize analog pins
+  analogWrite(SAIN1, pwm0);
+  analogWrite(SBIN1, pwm0);
+  analogWrite(SCIN1, pwm0);
+  analogWrite(SDIN1, pwm0);
   start();
 }
 
@@ -25,22 +33,54 @@ void loop() {
   // illustration of car motor control functions
   forward();
   delay(1000);
-  backward();
-  delay(1000);
   left();
+  delay(1000);
+  backward();
   delay(1000);
   right();
   delay(1000);
 }
 
-void clockwise(int pin1, int pin2) {
-  digitalWrite(pin2, LOW);
-  analogWrite(pin1, pwm50); 
-}
-
-void antiClockwise(int pin1, int pin2) {
-  digitalWrite(pin2, HIGH);
-  analogWrite(pin1, pwm80);
+void move(char motor, String direction) {  
+  int modeAD;
+  int modeBC;
+  int pwmAD;
+  int pwmBC;
+  
+  if (direction.equals("clockwise")) {
+    modeAD = HIGH;
+    modeBC = LOW;
+    pwmAD = 255 - speed;
+    pwmBC = 0 + speed;
+  } else if (direction.equals("anti-clockwise")) {
+    modeAD = LOW;
+    modeBC = HIGH;
+    pwmAD = 0 + speed;
+    pwmBC = 255 - speed;
+  } else {
+    return;
+  }
+ 
+  switch (motor) {
+    case 'A':
+      digitalWrite(SAIN2, modeAD);
+      analogWrite(SAIN1, pwmAD);
+      break;
+    case 'D':
+      digitalWrite(SDIN2, modeAD);
+      analogWrite(SDIN1, pwmAD);
+      break;
+    case 'B':
+      digitalWrite(SBIN2, modeBC);
+      analogWrite(SBIN1, pwmBC); 
+      break;
+    case 'C':
+      digitalWrite(SCIN2, modeBC);
+      analogWrite(SCIN1, pwmBC); 
+      break;
+    default:
+      break;
+  }
 }
 
 void stop() {
@@ -52,29 +92,30 @@ void start() {
 }
 
 void forward() {
-  clockwise(SAIN1, SAIN2);
-  clockwise(SBIN1, SBIN2);
-  clockwise(SCIN1, SCIN2);
-  clockwise(SDIN1, SDIN2);
+  move('A',"clockwise");
+  move('B',"clockwise");
+  move('C',"clockwise");
+  move('D',"clockwise");
 }
 
 void backward() {
-  antiClockwise(SAIN1, SAIN2);
-  antiClockwise(SBIN1, SBIN2);
-  antiClockwise(SCIN1, SCIN2);
-  antiClockwise(SDIN1, SDIN2);
+  move('A',"anti-clockwise");
+  move('B',"anti-clockwise");
+  move('C',"anti-clockwise");
+  move('D',"anti-clockwise");
 }
 
+//
 void left() {
-  antiClockwise(SAIN1, SAIN2);
-  antiClockwise(SCIN1, SCIN2);
-  clockwise(SBIN1, SBIN2);
-  clockwise(SDIN1, SDIN2);
+  move('A',"anti-clockwise");
+  move('C',"anti-clockwise");
+  move('B',"clockwise");
+  move('D',"clockwise");
 }
 
 void right() {
-  clockwise(SAIN1, SAIN2);
-  clockwise(SCIN1, SCIN2);
-  antiClockwise(SBIN1, SBIN2);
-  antiClockwise(SDIN1, SDIN2);
+  move('B',"anti-clockwise");
+  move('D',"anti-clockwise");
+  move('A',"clockwise");
+  move('C',"clockwise");
 }
