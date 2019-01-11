@@ -1,0 +1,3 @@
+Open port 9999 in firewall
+
+Only single character is accepted each connection
