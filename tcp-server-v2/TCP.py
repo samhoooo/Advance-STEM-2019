@@ -4,7 +4,7 @@ import queue
 import array
 from colorama import *
 init(autoreset=True)
-map = [[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,1,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0]]
+map = [[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,99,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1],[1,1,1,1,1,1,1,1,1]]
 x = 4
 y = 4
 
@@ -43,25 +43,25 @@ def handle_client_connection(client_socket):
 	x += xWASD.get(wasd,0)
 	y += yWASD.get(wasd,0)
 	if y < 1:
-		map.insert(0,[0 for x in range(len(map[0]))])
+		map.insert(0,[1 for x in range(len(map[0]))])
 		y += 1
 	if (y+2) > len(map):
-		map.append([0 for x in range(len(map[0]))])
+		map.append([1 for x in range(len(map[0]))])
 	if x < 1:
 		for r in map:
-			r.insert(0,0)
+			r.insert(0,1)
 		x += 1
 	if (x+2) > len(map[0]):
 		for r in map:
-			r.append(0)
-	if map[y+1][x] != 99:
-		map[y+1][x]=val1
-	if map[y][x+1] != 99:
-		map[y][x+1]=val2
+			r.append(1)
 	if map[y-1][x] != 99:
-		map[y-1][x]=val3
+		map[y-1][x]=val1
 	if map[y][x-1] != 99:
-		map[y][x-1]=val4
+		map[y][x-1]=val2
+	if map[y+1][x] != 99:
+		map[y+1][x]=val3
+	if map[y][x+1] != 99:
+		map[y][x+1]=val4
 	map[y][x]=99
 	# print map
 	for ir in range(len(map)):
@@ -70,33 +70,20 @@ def handle_client_connection(client_socket):
 				print(Style.BRIGHT + Fore.BLUE + "██" ,end="")
 			elif map[ir][ic] == 99:
 				print(Fore.GREEN + str(map[ir][ic]).zfill(2) ,end="")
-			elif map[ir][ic] != 0:
+			elif int(map[ir][ic]) > 1:
 				print(Fore.YELLOW + str(map[ir][ic]).zfill(2) ,end="")
+			elif map[ir][ic] == 1:
+				print(Fore.BLUE + "??" ,end="")
 			else:
-				print(Fore.RED + str(map[ir][ic]).zfill(2) ,end="")
+				print(Fore.RED + "XX",end="")
 		print()
 	
 	
 	print('New coord: {},{}'.format(x,y))
 	
 	client_socket.close()
-
-def loop_a():
-	while True:
-		client_sock, address = server.accept()
-		print('Accepted connection from {}:{}'.format(address[0], address[1]))
-		client_handler = threading.Thread(target=handle_client_connection,args=(client_sock,))
-		client_handler.start()
-
-	
-p1 = threading.Thread(target=loop_a)
-
-
-
-#p1.start()
-
-
-
 while True: 
-	loop_a()
-
+	client_sock, address = server.accept()
+	print('Accepted connection from {}:{}'.format(address[0], address[1]))
+	client_handler = threading.Thread(target=handle_client_connection,args=(client_sock,))
+	client_handler.start()
