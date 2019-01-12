@@ -63,41 +63,19 @@ while True:
 		valA = [ int(x) for x in valA.split("&")]
 		valS = [ int(x) for x in valS.split("&")]
 		valD = [ int(x) for x in valD.split("&")]
-		print('{}:{}: Going: {}\nValues:\n{}\n{}\n{}\n{}'.format(ip,addr,wasd,valW,valA,valS,valD))
 		x += xWASD.get(wasd,0)
 		y += yWASD.get(wasd,0)
-		'''
-		if (y+yWASD.get(wasd,0)-len(valW)) < 0:
-			for iii in range(len(valW)-yWASD.get(wasd,0)-2):
-				map.insert(0,[1 for xxxx in range(len(map[0]))])
-				y += 1
-		if (y+yWASD.get(wasd,0)+len(valS)) > len(map):
-			for iii in range(len(valS)+yWASD.get(wasd,0)+2):
-				map.append([1 for xxxx in range(len(map))])
-		if (x+xWASD.get(wasd,0)-len(valA)) < 0:
-			for iii in range(len(valA)-xWASD.get(wasd,0)-2):
-				for r in map:
-					r.insert(0,1)
-				x += 1
-		if (x+xWASD.get(wasd,0)+len(valD)) > len(map[0]):
-			for iii in range(len(valD)-0*(x+xWASD.get(wasd,0)+len(valD))):
-				for r1 in map:
-					r1.append(1)'''
+		print('{}:{}: Going: {}>({},{})\nValues:\n{}\n{}\n{}\n{}'.format(ip,addr,wasd,x,y,valW,valA,valS,valD))
 					
 		if (y-len(valW)) < 0:
 			map = [[1 for xxxx in range(len(map[0]))] for xxxxx in range(-(y-len(valW)))]+map
 			y += -(y-len(valW))
 		if (y+len(valS)) > len(map)-1:
-		#	map.append([1 for xxxx in range(len(map)-(y+len(valS)))])
 			map = map+[[1 for xxxx in range(len(map[0]))] for xxxxx in range((y+len(valS))-len(map)+1)]
 		if (x+len(valD)) > len(map[0])-1:
-			print("trig d")
 			add = [1 for xxxx in range((x+len(valD))-len(map[0])+1)]
-			print(add)
 			for rowid in range(len(map)):
 				map[rowid] = map[rowid] + add
-				print(add)
-				print(map[rowid])
 		if (x-len(valA)) < 0:
 			add = [1 for xxxx in range(-(x-len(valA)))]
 			for rowid in range(len(map)):
@@ -116,9 +94,7 @@ while True:
 			if map[y][x+(ggg+1)] != 99:
 				map[y][x+(ggg+1)]=valD[ggg]
 		map[y][x]=99
-		print(str(x))
-		print(str(y))
-		# print map
+
 		if not q.qsize():
 			for ir in range(len(map)):
 				pstr = ''
