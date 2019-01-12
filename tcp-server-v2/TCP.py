@@ -2,7 +2,8 @@ import socket
 import threading
 import queue
 import array
-from termcolor import colored
+from colorama import *
+init(autoreset=True)
 map = [[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,1,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0,0]]
 x = 4
 y = 4
@@ -53,19 +54,26 @@ def handle_client_connection(client_socket):
 	if (x+2) > len(map[0]):
 		for r in map:
 			r.append(0)
-	
-	map[y+1][x]=val1
-	map[y][x+1]=val2
-	map[y-1][x]=val3
-	map[y][x-1]=val4
-	map[y][x]=1
+	if map[y+1][x] != 99:
+		map[y+1][x]=val1
+	if map[y][x+1] != 99:
+		map[y][x+1]=val2
+	if map[y-1][x] != 99:
+		map[y-1][x]=val3
+	if map[y][x-1] != 99:
+		map[y][x-1]=val4
+	map[y][x]=99
 	# print map
-	for r in map:
-		for c in r:
-			if c != 0:
-				print("█",end="█")
+	for ir in range(len(map)):
+		for ic in range(len(map[ir])):
+			if ir==y and ic==x:
+				print(Style.BRIGHT + Fore.BLUE + "██" ,end="")
+			elif map[ir][ic] == 99:
+				print(Fore.GREEN + str(map[ir][ic]).zfill(2) ,end="")
+			elif map[ir][ic] != 0:
+				print(Fore.YELLOW + str(map[ir][ic]).zfill(2) ,end="")
 			else:
-				print(c,end=" ")
+				print(Fore.RED + str(map[ir][ic]).zfill(2) ,end="")
 		print()
 	
 	
