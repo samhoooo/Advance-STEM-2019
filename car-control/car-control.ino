@@ -13,7 +13,16 @@ const int SDIN2 = 4;
 const int pwm0 = 0; //PWM 0%
 const int speed = 30; // 0-255 (higher means faster)
 
+// used to getCompass value
+char valueBytes[8];
+int degree = 0;
+int counter = 0;
+byte value = 0;
+
+
 void setup() {
+  Serial.begin(9600); 
+  
   // Initialize digital pins
   pinMode(ENABLE, OUTPUT);
   pinMode(SAIN2, OUTPUT);
@@ -21,24 +30,34 @@ void setup() {
   pinMode(SCIN2, OUTPUT);
   pinMode(SDIN2, OUTPUT);
 
-  // Initialize analog pins
-  analogWrite(SAIN1, pwm0);
-  analogWrite(SBIN1, pwm0);
-  analogWrite(SCIN1, pwm0);
-  analogWrite(SDIN1, pwm0);
   start();
 }
 
 void loop() {
   // illustration of car motor control functions
+//  forward();
+//  delay(1000);
+//  left();
+//  delay(1000);
+//  backward();
+//  delay(1000);
+//  right();
+//  delay(1000);
+//  selfRotationClockwise();
+//  delay(1000);
+
+  rotateCarToNorth();
   forward();
-  delay(1000);
-  left();
-  delay(1000);
-  backward();
-  delay(1000);
-  right();
-  delay(1000);
+  delay(5000);
+}
+
+void rotateCarToNorth() {
+  int compassDirection = getCompass();
+  while (compassDirection > 0 && compassDirection < 359) {
+    selfRotationClockwise();
+    compassDirection = getCompass();
+    Serial.println(compassDirection);
+  }
 }
 
 void move(char motor, String direction) {  
@@ -88,6 +107,12 @@ void stop() {
 }
 
 void start() {
+  // Initialize analog pins
+  analogWrite(SAIN1, pwm0);
+  analogWrite(SBIN1, pwm0);
+  analogWrite(SCIN1, pwm0);
+  analogWrite(SDIN1, pwm0);
+  
   digitalWrite(ENABLE, HIGH);
 }
 
@@ -118,4 +143,39 @@ void right() {
   move('D',"anti-clockwise");
   move('A',"clockwise");
   move('C',"clockwise");
+}
+
+void selfRotationClockwise() {
+  move('C',"anti-clockwise");
+  move('D',"anti-clockwise");
+  move('A',"clockwise");
+  move('B',"clockwise");
+}
+
+void selfRotationAntiClockwise() {
+  move('A',"anti-clockwise");
+  move('B',"anti-clockwise");
+  move('C',"clockwise");
+  move('D',"clockwise");
+}
+
+int getCompass() {
+  
+  value = 0;
+
+  Serial.write(0x31);
+  if (Serial.available()) {
+    Serial.read();
+  }
+  while (value == 0) {
+    if (Serial.available()) {
+      valueBytes[counter] = Serial.read();
+      counter = (counter + 1) % 8;
+      if (counter == 0) {
+        degree = (valueBytes[2] - 48) * 100 + (valueBytes[3] - 48) * 10 + (valueBytes[4] - 48);
+        value = 1;
+      }
+    }
+  }
+  return degree;
 }
