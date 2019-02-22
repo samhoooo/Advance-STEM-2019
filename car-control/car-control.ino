@@ -11,7 +11,7 @@ const int SDIN2 = 4;
 
 // PWM values
 const int pwm0 = 0; //PWM 0%
-const int speed = 30; // 0-255 (higher means faster)
+//const int speed = 30; // 0-255 (higher means faster)
 
 // used to getCompass value
 char valueBytes[8];
@@ -21,8 +21,9 @@ byte value = 0;
 
 
 void setup() {
-  Serial.begin(9600); 
-  
+  Serial.begin(9600);
+  Serial1.begin(9600);
+
   // Initialize digital pins
   pinMode(ENABLE, OUTPUT);
   pinMode(SAIN2, OUTPUT);
@@ -35,37 +36,61 @@ void setup() {
 
 void loop() {
   // illustration of car motor control functions
-//  forward();
-//  delay(1000);
-//  left();
-//  delay(1000);
-//  backward();
-//  delay(1000);
-//  right();
-//  delay(1000);
-//  selfRotationClockwise();
-//  delay(1000);
+  //  forward();
+  //  delay(1000);
+  //  left();
+  //  delay(1000);
+  //  backward();
+  //  delay(1000);
+  //  right();
+  //  delay(1000);
+  //  selfRotationClockwise();
+  //  delay(1000);
 
-  rotateCarToNorth();
+  adjustCarToNorth();
   forward();
   delay(5000);
 }
 
-void rotateCarToNorth() {
+//void rotateCarToNorth() {
+//  int compassDirection = getCompass();
+//  while (compassDirection > 0 && compassDirection < 359) {
+//    selfRotationClockwise();
+//    compassDirection = getCompass();
+//    Serial.println(compassDirection);
+//  }
+//}
+
+void adjustCarToNorth() {
   int compassDirection = getCompass();
-  while (compassDirection > 0 && compassDirection < 359) {
-    selfRotationClockwise();
+  int compassDiff;
+  bool clockwise;
+  int targetspeed;
+  while (compassDirection != 0) {
     compassDirection = getCompass();
-    Serial.println(compassDirection);
+    compassDiff = compassDirection;
+    clockwise = false;
+    if (compassDirection > 180) {
+      compassDiff = 360 - compassDirection;
+      clockwise = true;
+    }
+    targetspeed = 120;
+    if (compassDiff < 60) {
+      targetspeed=map(compassDiff, 0, 60, 20, 50);
+    }
+    if (clockwise) {
+      selfRotationAntiClockwise(targetspeed);
+    } else {
+      selfRotationClockwise(targetspeed);
+    }
   }
 }
-
-void move(char motor, String direction) {  
+void move(char motor, String direction, int speed) {
   int modeAD;
   int modeBC;
   int pwmAD;
   int pwmBC;
-  
+
   if (direction.equals("clockwise")) {
     modeAD = HIGH;
     modeBC = LOW;
@@ -79,7 +104,7 @@ void move(char motor, String direction) {
   } else {
     return;
   }
- 
+
   switch (motor) {
     case 'A':
       digitalWrite(SAIN2, modeAD);
@@ -91,11 +116,11 @@ void move(char motor, String direction) {
       break;
     case 'B':
       digitalWrite(SBIN2, modeBC);
-      analogWrite(SBIN1, pwmBC); 
+      analogWrite(SBIN1, pwmBC);
       break;
     case 'C':
       digitalWrite(SCIN2, modeBC);
-      analogWrite(SCIN1, pwmBC); 
+      analogWrite(SCIN1, pwmBC);
       break;
     default:
       break;
@@ -112,64 +137,64 @@ void start() {
   analogWrite(SBIN1, pwm0);
   analogWrite(SCIN1, pwm0);
   analogWrite(SDIN1, pwm0);
-  
+
   digitalWrite(ENABLE, HIGH);
 }
 
 void forward() {
-  move('A',"clockwise");
-  move('B',"clockwise");
-  move('C',"clockwise");
-  move('D',"clockwise");
+  move('A', "clockwise", 30);
+  move('B', "clockwise", 30);
+  move('C', "clockwise", 30);
+  move('D', "clockwise", 30);
 }
-
-void backward() {
-  move('A',"anti-clockwise");
-  move('B',"anti-clockwise");
-  move('C',"anti-clockwise");
-  move('D',"anti-clockwise");
-}
-
 //
-void left() {
-  move('A',"anti-clockwise");
-  move('C',"anti-clockwise");
-  move('B',"clockwise");
-  move('D',"clockwise");
+//void backward() {
+//  move('A',"anti-clockwise");
+//  move('B',"anti-clockwise");
+//  move('C',"anti-clockwise");
+//  move('D',"anti-clockwise");
+//}
+//
+////
+//void left() {
+//  move('A',"anti-clockwise");
+//  move('C',"anti-clockwise");
+//  move('B',"clockwise");
+//  move('D',"clockwise");
+//}
+//
+//void right() {
+//  move('B',"anti-clockwise");
+//  move('D',"anti-clockwise");
+//  move('A',"clockwise");
+//  move('C',"clockwise");
+//}
+
+void selfRotationClockwise(int speed) {
+  move('C', "anti-clockwise", speed);
+  move('D', "anti-clockwise", speed);
+  move('A', "clockwise", speed);
+  move('B', "clockwise", speed);
 }
 
-void right() {
-  move('B',"anti-clockwise");
-  move('D',"anti-clockwise");
-  move('A',"clockwise");
-  move('C',"clockwise");
-}
-
-void selfRotationClockwise() {
-  move('C',"anti-clockwise");
-  move('D',"anti-clockwise");
-  move('A',"clockwise");
-  move('B',"clockwise");
-}
-
-void selfRotationAntiClockwise() {
-  move('A',"anti-clockwise");
-  move('B',"anti-clockwise");
-  move('C',"clockwise");
-  move('D',"clockwise");
+void selfRotationAntiClockwise(int speed) {
+  move('A', "anti-clockwise", speed);
+  move('B', "anti-clockwise", speed);
+  move('C', "clockwise", speed);
+  move('D', "clockwise", speed);
 }
 
 int getCompass() {
-  
+
   value = 0;
 
-  Serial.write(0x31);
-  if (Serial.available()) {
-    Serial.read();
+  Serial1.write(0x31);
+  if (Serial1.available()) {
+    Serial1.read();
   }
   while (value == 0) {
-    if (Serial.available()) {
-      valueBytes[counter] = Serial.read();
+    if (Serial1.available()) {
+      valueBytes[counter] = Serial1.read();
       counter = (counter + 1) % 8;
       if (counter == 0) {
         degree = (valueBytes[2] - 48) * 100 + (valueBytes[3] - 48) * 10 + (valueBytes[4] - 48);
