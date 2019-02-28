@@ -4,7 +4,7 @@
 #include <WiFiEspUdp.h>
 IPAddress host;
 char devID[3] = "";
-char incomingPacket[255]; 
+
 /*
   WiFiEsp example: ScanNetworks
 
@@ -18,10 +18,7 @@ char incomingPacket[255];
 
 
 // Emulate Serial1 on pins 6/7 if not present
-#ifndef HAVE_HWSERIAL3
-#include "SoftwareSerial.h"
-SoftwareSerial Serial3(6, 7); // RX, TX
-#endif
+
 WiFiEspUDP Udp;
 void setup() {
 
@@ -54,13 +51,7 @@ void setup() {
     Serial.print(".");
     delay(400);
     if (Udp.parsePacket()) {
-      int len = Udp.read(incomingPacket, 255);
-      if (len > 0)
-      {
-        incomingPacket[len] = 0;
-      }
-      
-      Serial.print(incomingPacket);
+
       Serial.println();
       Serial.print("IP found: ");
       host = Udp.remoteIP();
