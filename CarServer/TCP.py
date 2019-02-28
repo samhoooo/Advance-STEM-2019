@@ -1,8 +1,19 @@
+#!/usr/bin/env python3
 import socket
 import threading
 import queue
 from colorama import *
 import os
+import time
+import sys
+
+
+
+
+cs = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+cs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+cs.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+
 
 def cls():
 	os.system('cls' if os.name=='nt' else 'clear')
@@ -51,8 +62,12 @@ def taskA():
 	while True: 
 		client_sock, address = server.accept()
 		threading.Thread(target=handle_client_connection,args=(client_sock,address[0], address[1],)).start()
-
+def taskB():
+	while True:
+		cs.sendto(b'!', ('255.255.255.255', 9876))
+		time.sleep(1)
 threading.Thread(target=taskA).start()
+threading.Thread(target=taskB).start()
 
 while True:
 	if not q.empty():

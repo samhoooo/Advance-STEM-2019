@@ -1,1 +1,0 @@
-Open port 9999 in firewall
