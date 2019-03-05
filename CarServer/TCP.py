@@ -73,10 +73,11 @@ while True:
 	if not q.empty():
 		cls()
 		id,wasd,valW,valA,valS,valD,ip,addr = q.get()
-		valW = [ int(x) for x in valW.split("&")]
-		valA = [ int(x) for x in valA.split("&")]
-		valS = [ int(x) for x in valS.split("&")]
-		valD = [ int(x) for x in valD.split("&")]
+		if (valW and valA and valS and valD):
+			valW = [ int(x) for x in valW.split("&")]
+			valA = [ int(x) for x in valA.split("&")]
+			valS = [ int(x) for x in valS.split("&")]
+			valD = [ int(x) for x in valD.split("&")]
 		do_loop = True
 		ic = 0
 		ir = 0
@@ -94,6 +95,7 @@ while True:
 		xID[id] += xWASD.get(wasd,0)
 		yID[id] += yWASD.get(wasd,0)
 		print('ID:{}@{}:{}: Going: {}>({},{})\nValues:\n{}\n{}\n{}\n{}'.format(id,ip,addr,wasd,xID[id],yID[id],valW,valA,valS,valD))
+
 		if (yID[id]-len(valW)) < 0:
 			map = [[1 for i in range(len(map[0]))] for j in range(-(yID[id]-len(valW)))]+map
 			yID[id] -= yID[id]-len(valW)
@@ -113,6 +115,7 @@ while True:
 			spset=True
 		else:
 			map[yID[id]][xID[id]]=98
+
 		for i in range(len(valW)):
 			if map[yID[id]-(i+1)][xID[id]] < 98:
 				map[yID[id]-(i+1)][xID[id]]=valW[i]
