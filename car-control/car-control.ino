@@ -1,17 +1,33 @@
-// pins
-const int ENABLE = 13;
-const int SAIN1 = 11; // motor A
-const int SAIN2 = 12;
-const int SBIN1 = 10; // motor B
-const int SBIN2 = 8;
-const int SCIN1 = 6;  // motor C
-const int SCIN2 = 7;
-const int SDIN1 = 5;  // motor D
-const int SDIN2 = 4;
+void ctrlforward(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
+void ctrlbackward(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
+void ctrlright(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
+void ctrlleft(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
+
+// already a 7 millisecond delay from 9600 baud communication
+// see https://www.microchip.com/forums/m405110.aspx
+const byte ENABLE = 13;
+const byte SAIN1 = 11; // motor A
+const byte SAIN2 = 12;
+const byte SBIN1 = 10; // motor B
+const byte SBIN2 = 8;
+const byte SCIN1 = 3;  // motor C
+const byte SCIN2 = 7;
+const byte SDIN1 = 2;  // motor D
+const byte SDIN2 = 4;
+
+
+
+
+/*Notes and Warnings
+  The PWM outputs generated on pins 5 and 6 will have higher-than-expected duty cycles.
+  This is because of interactions with the millis() and delay() functions,
+  which share the same internal timer used to generate those PWM outputs.
+  This will be noticed mostly on low duty-cycle settings (e.g. 0 - 10)
+  and may result in a value of 0 not fully turning off the output on pins 5 and 6.
+*/
 
 // PWM values
-const int pwm0 = 0; //PWM 0%
-//const int speed = 30; // 0-255 (higher means faster)
+const byte pwm0 = 0; //PWM 0%
 
 // used to getCompass value
 char valueBytes[8];
@@ -21,7 +37,7 @@ byte value = 0;
 
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(250000);
   Serial1.begin(9600);
 
   // Initialize digital pins
@@ -35,32 +51,32 @@ void setup() {
 }
 
 void loop() {
-  // illustration of car motor control functions
-  //  forward();
-  //  delay(1000);
-  //  left();
-  //  delay(1000);
-  //  backward();
-  //  delay(1000);
-  //  right();
-  //  delay(1000);
-  //  selfRotationClockwise();
-  //  delay(1000);
-
   adjustCarToNorth();
-  forward();
-  delay(5000);
+  while (true) {
+    ctrlforward(50, 3, 10, 50);
+    ctrlright(50, 3, 10, 50);
+    ctrlbackward(50, 3, 10, 50);
+    ctrlleft(50, 3, 10, 50);
+
+  }
+
 }
 
-//void rotateCarToNorth() {
-//  int compassDirection = getCompass();
-//  while (compassDirection > 0 && compassDirection < 359) {
-//    selfRotationClockwise();
-//    compassDirection = getCompass();
-//    Serial.println(compassDirection);
-//  }
-//}
 
+byte clip255(int input) {
+  return constrain(input, 0, 255);
+}
+int compasstranslate(int compass, int translate) {
+  return (compass + translate) % 360;
+
+}
+int degerr(int input) {
+  if (input < 180) {
+    return input;
+  } else {
+    return 360 - input;
+  }
+}
 void adjustCarToNorth() {
   int compassDirection = getCompass();
   int compassDiff;
@@ -75,8 +91,8 @@ void adjustCarToNorth() {
       clockwise = true;
     }
     targetspeed = 120;
-    if (compassDiff < 60) {
-      targetspeed=map(compassDiff, 0, 60, 20, 50);
+    if (compassDiff < 70) {
+      targetspeed = map(compassDiff, 0, 70, 20, 80);
     }
     if (clockwise) {
       selfRotationAntiClockwise(targetspeed);
@@ -85,12 +101,11 @@ void adjustCarToNorth() {
     }
   }
 }
-void move(char motor, String direction, int speed) {
+void move(char motor, String direction, byte speed) {
   int modeAD;
   int modeBC;
   int pwmAD;
   int pwmBC;
-
   if (direction.equals("clockwise")) {
     modeAD = HIGH;
     modeBC = LOW;
@@ -127,6 +142,8 @@ void move(char motor, String direction, int speed) {
   }
 }
 
+
+
 void stop() {
   digitalWrite(ENABLE, LOW);
 }
@@ -141,43 +158,143 @@ void start() {
   digitalWrite(ENABLE, HIGH);
 }
 
-void forward() {
-  move('A', "clockwise", 30);
-  move('B', "clockwise", 30);
-  move('C', "clockwise", 30);
-  move('D', "clockwise", 30);
+void forward(byte speed) {
+  move('A', "clockwise", speed);
+  move('B', "clockwise", speed);
+  move('C', "clockwise", speed);
+  move('D', "clockwise", speed);
 }
-//
-//void backward() {
-//  move('A',"anti-clockwise");
-//  move('B',"anti-clockwise");
-//  move('C',"anti-clockwise");
-//  move('D',"anti-clockwise");
-//}
-//
-////
-//void left() {
-//  move('A',"anti-clockwise");
-//  move('C',"anti-clockwise");
-//  move('B',"clockwise");
-//  move('D',"clockwise");
-//}
-//
-//void right() {
-//  move('B',"anti-clockwise");
-//  move('D',"anti-clockwise");
-//  move('A',"clockwise");
-//  move('C',"clockwise");
-//}
+void ctrlforward(byte speed, int wait, byte acceptance, int cycle) {
+  int compass;
+  int correction;
+  for (int i = 0; i < cycle; i++) {
+    compass = getCompass();
+    correction = clip255(speed * (acceptance - degerr(compass)) / acceptance);
 
-void selfRotationClockwise(int speed) {
+    if (compass < 180) {
+      move('A', "clockwise", speed);
+      move('B', "clockwise", speed);
+      move('C', "clockwise", correction);
+      move('D', "clockwise", correction);
+    } else {
+      move('A', "clockwise", correction);
+      move('B', "clockwise", correction);
+      move('C', "clockwise", speed);
+      move('D', "clockwise", speed);
+    }
+    delay(wait);
+
+  }
+
+}
+void backward(byte speed) {
+  move('A', "anti-clockwise", speed);
+  move('B', "anti-clockwise", speed);
+  move('C', "anti-clockwise", speed);
+  move('D', "anti-clockwise", speed);
+}
+
+
+void ctrlbackward(byte speed, int wait, byte acceptance, int cycle) {
+  int compass;
+  int correction;
+  for (int i = 0; i < cycle; i++) {
+    compass = getCompass();
+    correction = clip255(speed * (acceptance - degerr(compass)) / acceptance);
+
+    if (compass > 180) {
+      move('A', "anti-clockwise", speed);
+      move('B', "anti-clockwise", speed);
+      move('C', "anti-clockwise", correction);
+      move('D', "anti-clockwise", correction);
+    } else {
+      move('A', "anti-clockwise", correction);
+      move('B', "anti-clockwise", correction);
+      move('C', "anti-clockwise", speed);
+      move('D', "anti-clockwise", speed);
+    }
+    delay(wait);
+
+  }
+
+}
+
+//
+void right(byte speed) {
+  move('A', "anti-clockwise", speed);
+  move('B', "clockwise", speed);
+  move('C', "anti-clockwise", speed);
+  move('D', "clockwise", speed);
+}
+void ctrlright(byte speed, int wait, byte acceptance, int cycle) {
+  int compass;
+  int correction;
+  for (int i = 0; i < cycle; i++) {
+    compass = getCompass();
+    if (compass > 180) {
+      correction = clip255(speed * (acceptance - (360 - compass)) / acceptance);
+    } else {
+      correction = clip255(speed * (acceptance - compass) / acceptance);
+    }
+    if (compass < 180) {
+      move('A', "anti-clockwise", correction);
+      move('B', "clockwise", speed);
+      move('C', "anti-clockwise", speed);
+      move('D', "clockwise", correction);
+    } else {
+      move('A', "anti-clockwise", speed);
+      move('B', "clockwise", correction);
+      move('C', "anti-clockwise", correction);
+      move('D', "clockwise", speed);
+    }
+    delay(wait);
+
+  }
+
+}
+void left(byte speed) {
+  move('B', "anti-clockwise", speed);
+  move('D', "anti-clockwise", speed);
+  move('A', "clockwise", speed);
+  move('C', "clockwise", speed);
+}
+
+void ctrlleft(byte speed, int wait, byte acceptance, int cycle) {
+  int compass;
+  int correction;
+  for (int i = 0; i < cycle; i++) {
+    compass = getCompass();
+    if (compass > 180) {
+      correction = clip255(speed * (acceptance - (360 - compass)) / acceptance);
+    } else {
+      correction = clip255(speed * (acceptance - compass) / acceptance);
+    }
+    if (compass < 180) {
+      move('A', "clockwise", speed);
+      move('B', "anti-clockwise", correction);
+      move('C', "clockwise", correction);
+      move('D', "anti-clockwise", speed);
+    } else {
+      move('A', "clockwise", correction);
+      move('B', "anti-clockwise", speed);
+      move('C', "clockwise", speed);
+      move('D', "anti-clockwise", correction);
+    }
+    delay(wait);
+
+  }
+
+}
+
+
+void selfRotationClockwise(byte speed) {
   move('C', "anti-clockwise", speed);
   move('D', "anti-clockwise", speed);
   move('A', "clockwise", speed);
   move('B', "clockwise", speed);
 }
 
-void selfRotationAntiClockwise(int speed) {
+void selfRotationAntiClockwise(byte speed) {
   move('A', "anti-clockwise", speed);
   move('B', "anti-clockwise", speed);
   move('C', "clockwise", speed);
