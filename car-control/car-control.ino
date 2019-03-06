@@ -1,22 +1,25 @@
+
 #include <WiFiEsp.h>
 #include <WiFiEspClient.h>
 #include <WiFiEspServer.h>
 #include <WiFiEspUdp.h>
 IPAddress host;
-char devID[3] = "";
+String devID = "";
 #define DIRECTION_FW 'W'
 #define DIRECTION_LT 'A'
 #define DIRECTION_BW 'S'
 #define DIRECTION_RT 'D'
 
 
+
+
 WiFiEspUDP Udp;
 WiFiEspClient client;
 
-void ctrlforward(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
-void ctrlbackward(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
-void ctrlright(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
-void ctrlleft(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
+void ctrlforward(int speed, int wait = 0, int acceptance = 0, int cycle = 1);
+void ctrlbackward(int speed, int wait = 0, int acceptance = 0, int cycle = 1);
+void ctrlright(int speed, int wait = 0, int acceptance = 0, int cycle = 1);
+void ctrlleft(int speed, int wait = 0, int acceptance = 0, int cycle = 1);
 void adjustCarToNorth(int angle = 0);
 
 // already a 7 millisecond delay from 9600 baud communication
@@ -54,7 +57,7 @@ byte value = 0;
 
 void setup() {
   // initialize serial for debugging
-  Serial.begin(115200);
+  Serial.begin(2000000);
   // initialize serial for ESP module
   Serial3.begin(115200);
   // initialize ESP module
@@ -107,11 +110,11 @@ void loop() {
 
   while (true) {
     senddata(devID, DIRECTION_FW);
-    ctrlforward(50, 3, 10, 50);
+    ctrlforward(100, 3, 10, 20);
     senddata(devID, DIRECTION_RT);
     ctrlright(50, 3, 10, 50);
     senddata(devID, DIRECTION_BW);
-    ctrlbackward(50, 3, 10, 50);
+    ctrlbackward(100, 3, 10, 20);
     senddata(devID, DIRECTION_LT);
     ctrlleft(50, 3, 10, 50);
 
@@ -120,8 +123,8 @@ void loop() {
 }
 
 
-byte clip255(int input) {
-  return constrain(input, 0, 255);
+int clip255(int input) {
+  return constrain(input, -255, 255);
 }
 int compasstranslate(int compass, int translate) {
   return (compass + translate) % 360;
@@ -169,11 +172,27 @@ void adjustCarToNorth(int angle) {
     }
   }
 }
-void move(char motor, String direction, byte speed) {
-  int modeAD;
-  int modeBC;
-  int pwmAD;
-  int pwmBC;
+
+void move(char motor, String direction, int speed) {
+  if (speed < 0) {
+    if (direction.equals("clockwise")) {
+      move2(motor, "anti-clockwise", -speed);
+    } else if (direction.equals("anti-clockwise")) {
+      move2(motor, "clockwise", -speed);
+    } else {
+      return;
+    }
+  } else {
+    move2(motor, direction, speed);
+  }
+}
+
+
+void move2(char motor, String direction, int speed) {
+  boolean modeAD;
+  boolean modeBC;
+  byte pwmAD;
+  byte pwmBC;
   if (direction.equals("clockwise")) {
     modeAD = HIGH;
     modeBC = LOW;
@@ -226,18 +245,21 @@ void start() {
   digitalWrite(ENABLE, HIGH);
 }
 
-void forward(byte speed) {
+void forward(int speed) {
   move('A', "clockwise", speed);
   move('B', "clockwise", speed);
   move('C', "clockwise", speed);
   move('D', "clockwise", speed);
 }
-void ctrlforward(byte speed, int wait, byte acceptance, int cycle) {
+void ctrlforward(int speed, int wait, int acceptance, int cycle) {
   int compass;
   int correction;
   for (int i = 0; i < cycle; i++) {
     compass = getCompass();
     correction = clip255(speed * (acceptance - degerr(compass)) / acceptance);
+    if (correction < -speed) {
+      correction = -speed;
+    };
 
     if (compass < 180) {
       move('A', "clockwise", speed);
@@ -255,7 +277,7 @@ void ctrlforward(byte speed, int wait, byte acceptance, int cycle) {
   }
 
 }
-void backward(byte speed) {
+void backward(int speed) {
   move('A', "anti-clockwise", speed);
   move('B', "anti-clockwise", speed);
   move('C', "anti-clockwise", speed);
@@ -263,12 +285,15 @@ void backward(byte speed) {
 }
 
 
-void ctrlbackward(byte speed, int wait, byte acceptance, int cycle) {
+void ctrlbackward(int speed, int wait, int acceptance, int cycle) {
   int compass;
   int correction;
   for (int i = 0; i < cycle; i++) {
     compass = getCompass();
     correction = clip255(speed * (acceptance - degerr(compass)) / acceptance);
+    if (correction < -speed) {
+      correction = -speed;
+    };
 
     if (compass > 180) {
       move('A', "anti-clockwise", speed);
@@ -288,13 +313,13 @@ void ctrlbackward(byte speed, int wait, byte acceptance, int cycle) {
 }
 
 //
-void right(byte speed) {
+void right(int speed) {
   move('A', "anti-clockwise", speed);
   move('B', "clockwise", speed);
   move('C', "anti-clockwise", speed);
   move('D', "clockwise", speed);
 }
-void ctrlright(byte speed, int wait, byte acceptance, int cycle) {
+void ctrlright(int speed, int wait, int acceptance, int cycle) {
   int compass;
   int correction;
   for (int i = 0; i < cycle; i++) {
@@ -304,6 +329,12 @@ void ctrlright(byte speed, int wait, byte acceptance, int cycle) {
     } else {
       correction = clip255(speed * (acceptance - compass) / acceptance);
     }
+
+    if (correction < -speed) {
+      correction = -speed;
+    };
+
+
     if (compass < 180) {
       move('A', "anti-clockwise", correction);
       move('B', "clockwise", speed);
@@ -320,14 +351,14 @@ void ctrlright(byte speed, int wait, byte acceptance, int cycle) {
   }
 
 }
-void left(byte speed) {
+void left(int speed) {
   move('B', "anti-clockwise", speed);
   move('D', "anti-clockwise", speed);
   move('A', "clockwise", speed);
   move('C', "clockwise", speed);
 }
 
-void ctrlleft(byte speed, int wait, byte acceptance, int cycle) {
+void ctrlleft(int speed, int wait, int acceptance, int cycle) {
   int compass;
   int correction;
   for (int i = 0; i < cycle; i++) {
@@ -337,6 +368,12 @@ void ctrlleft(byte speed, int wait, byte acceptance, int cycle) {
     } else {
       correction = clip255(speed * (acceptance - compass) / acceptance);
     }
+
+
+
+    if (correction < -speed) {
+      correction = -speed;
+    };
     if (compass < 180) {
       move('A', "clockwise", speed);
       move('B', "anti-clockwise", correction);
@@ -355,14 +392,14 @@ void ctrlleft(byte speed, int wait, byte acceptance, int cycle) {
 }
 
 
-void selfRotationClockwise(byte speed) {
+void selfRotationClockwise(int speed) {
   move('C', "anti-clockwise", speed);
   move('D', "anti-clockwise", speed);
   move('A', "clockwise", speed);
   move('B', "clockwise", speed);
 }
 
-void selfRotationAntiClockwise(byte speed) {
+void selfRotationAntiClockwise(int speed) {
   move('A', "anti-clockwise", speed);
   move('B', "anti-clockwise", speed);
   move('C', "clockwise", speed);
@@ -396,7 +433,9 @@ void printMacAddress()
   // get your MAC address
   byte mac[6];
   WiFi.macAddress(mac);
-  String(mac[0], HEX).toCharArray(devID, 3);
+  devID = mac2String(mac);
+
+
   Serial.print("Device id: ");
   Serial.println(devID);
   // print MAC address
@@ -455,17 +494,16 @@ void printEncryptionType(int thisType) {
   Serial.println();
 }
 
-void senddata(char id[], char wasd) {
-  String message = String(id);
-  message.concat('#');
-  message.concat(wasd);
-  message.concat('#');
-  message.concat('#');
-  message.concat('#');
-  message.concat('#');
-  char plain[message.length() + 1];
-  message.toCharArray(plain, message.length() + 1);
-  //message.getBytes(plain, message.length());
+void senddata(String id, char wasd) {
+  digitalWrite(ENABLE, LOW);
+  id.concat('#');
+  id.concat(wasd);
+  id.concat('#');
+  id.concat('#');
+  id.concat('#');
+  id.concat('#');
+  char plain[id.length() + 1];
+  id.toCharArray(plain, id.length() + 1);
   if (client.connect(host, 9999)) {
     client.print(plain);
     //    client.print('#');
@@ -476,5 +514,19 @@ void senddata(char id[], char wasd) {
     //    client.print('#');
     client.stop();
   }
+  digitalWrite(ENABLE, HIGH);
 
+}
+
+
+String mac2String(byte ar[]) {
+  String s;
+  for (byte i = 0; i < 6; ++i)
+  {
+    char buf[3];
+    sprintf(buf, "%2X", ar[i]);
+    s += buf;
+    if (i < 5) s += ':';
+  }
+  return s;
 }
