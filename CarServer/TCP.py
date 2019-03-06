@@ -48,6 +48,7 @@ bind_ip = '0.0.0.0'
 bind_port = 9999
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.settimeout(100)
 server.bind((bind_ip, bind_port))
 server.listen(1)
 
@@ -114,7 +115,8 @@ while True:
 			map[yID[id]][xID[id]]=99
 			spset=True
 		else:
-			map[yID[id]][xID[id]]=98
+			if not map[yID[id]][xID[id]] == 99:
+				map[yID[id]][xID[id]]=98
 
 		for i in range(len(valW)):
 			if map[yID[id]-(i+1)][xID[id]] < 98:

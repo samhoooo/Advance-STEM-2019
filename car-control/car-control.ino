@@ -4,13 +4,20 @@
 #include <WiFiEspUdp.h>
 IPAddress host;
 char devID[3] = "";
+#define DIRECTION_FW 'W'
+#define DIRECTION_LT 'A'
+#define DIRECTION_BW 'S'
+#define DIRECTION_RT 'D'
+
 
 WiFiEspUDP Udp;
+WiFiEspClient client;
 
 void ctrlforward(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
 void ctrlbackward(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
 void ctrlright(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
 void ctrlleft(byte speed, int wait = 0, byte acceptance = 0, int cycle = 1);
+void adjustCarToNorth(int angle = 0);
 
 // already a 7 millisecond delay from 9600 baud communication
 // see https://www.microchip.com/forums/m405110.aspx
@@ -54,12 +61,12 @@ void setup() {
   WiFi.init(&Serial3);
   // initialize serial for GY26
   Serial1.begin(9600);
-  
-  
-    // Print WiFi MAC address
+
+
+  // Print WiFi MAC address
   printMacAddress();
-  Serial.println("Performing network scan");
-  listNetworks();
+  //  Serial.println("Performing network scan");
+  //  listNetworks();
   WiFi.begin("HIDDENWIFI", "HonestyIsTheBestPolicy");
 
 
@@ -78,7 +85,11 @@ void setup() {
       break;
     }
   }
-  
+
+
+
+
+
 
   // Initialize digital pins
   pinMode(ENABLE, OUTPUT);
@@ -91,11 +102,17 @@ void setup() {
 }
 
 void loop() {
+
   adjustCarToNorth();
+
   while (true) {
+    senddata(devID, DIRECTION_FW);
     ctrlforward(50, 3, 10, 50);
+    senddata(devID, DIRECTION_RT);
     ctrlright(50, 3, 10, 50);
+    senddata(devID, DIRECTION_BW);
     ctrlbackward(50, 3, 10, 50);
+    senddata(devID, DIRECTION_LT);
     ctrlleft(50, 3, 10, 50);
 
   }
@@ -117,13 +134,15 @@ int degerr(int input) {
     return 360 - input;
   }
 }
-void adjustCarToNorth() {
-  int compassDirection = getCompass();
+void adjustCarToNorth(int angle) {
+  int trial = 0;
+  int compassDirection = compasstranslate(getCompass(), angle);
   int compassDiff;
   bool clockwise;
   int targetspeed;
   while (compassDirection != 0) {
-    compassDirection = getCompass();
+
+    compassDirection = compasstranslate(getCompass(), angle);
     compassDiff = compassDirection;
     clockwise = false;
     if (compassDirection > 180) {
@@ -131,9 +150,18 @@ void adjustCarToNorth() {
       clockwise = true;
     }
     targetspeed = 120;
-    if (compassDiff < 70) {
-      targetspeed = map(compassDiff, 0, 70, 20, 80);
+    if (compassDiff < 50) {
+      targetspeed = map(compassDiff, 0, 50, 30, 120);
     }
+    trial++;
+    Serial.println(trial);
+    if (trial > 150) {
+      selfRotationAntiClockwise(160);
+      compassDirection = 1;
+      delay(75);
+      trial = 0;
+    }
+    targetspeed = min(targetspeed, trial * 5);
     if (clockwise) {
       selfRotationAntiClockwise(targetspeed);
     } else {
@@ -425,4 +453,28 @@ void printEncryptionType(int thisType) {
       break;
   }
   Serial.println();
+}
+
+void senddata(char id[], char wasd) {
+  String message = String(id);
+  message.concat('#');
+  message.concat(wasd);
+  message.concat('#');
+  message.concat('#');
+  message.concat('#');
+  message.concat('#');
+  char plain[message.length() + 1];
+  message.toCharArray(plain, message.length() + 1);
+  //message.getBytes(plain, message.length());
+  if (client.connect(host, 9999)) {
+    client.print(plain);
+    //    client.print('#');
+    //    client.print(Direction);
+    //    client.print('#');
+    //    client.print('#');
+    //    client.print('#');
+    //    client.print('#');
+    client.stop();
+  }
+
 }
