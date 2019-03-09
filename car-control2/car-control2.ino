@@ -23,32 +23,28 @@ void ctrlleft(int speed, int wait = 0, int acceptance = 0, int cycle = 1);
 void adjustCarToNorth(int angle = 0);
 
 // already a 7 millisecond delay from 9600 baud communication
+// actually a 21 ms delay built in in actual testing
 // see https://www.microchip.com/forums/m405110.aspx
-const byte ENABLE = 13;
-const byte SAIN1 = 11; // motor A
-const byte SAIN2 = 12;
-const byte SBIN1 = 10; // motor B
-const byte SBIN2 = 8;
-const byte SCIN1 = 3;  // motor C
-const byte SCIN2 = 7;
-const byte SDIN1 = 2;  // motor D
-const byte SDIN2 = 4;
+const int ENABLE = 13;
+const int SAIN1 = 11; // motor A
+const int SAIN2 = 12;
+const int SBIN1 = 10; // motor B
+const int SBIN2 = 8;
+const int SCIN1 = 3;  // motor C
+const int SCIN2 = 7;
+const int SDIN1 = 2;  // motor D
+const int SDIN2 = 4;
 
 
 
 
-/*Notes and Warnings
-  The PWM outputs generated on pins 5 and 6 will have higher-than-expected duty cycles.
-  This is because of interactions with the millis() and delay() functions,
-  which share the same internal timer used to generate those PWM outputs.
-  This will be noticed mostly on low duty-cycle settings (e.g. 0 - 10)
-  and may result in a value of 0 not fully turning off the output on pins 5 and 6.
-*/
+//Notes and Warnings
+//The PWM outputs generated on pins 5 and 6 will have higher-than-expected duty cycles.
+//This is because of interactions with the millis() and delay() functions,
+//which share the same internal timer used to generate those PWM outputs.
+//This will be noticed mostly on low duty-cycle settings (e.g. 0 - 10)
+//and may result in a value of 0 not fully turning off the output on pins 5 and 6.
 
-// PWM values
-
-
-// used to getCompass value
 
 
 
@@ -108,13 +104,13 @@ void loop() {
 
   while (true) {
     senddata(devID, DIRECTION_FW);
-    ctrlforward(100, 3, 10, 20);
+    ctrlforward(100, 3, 100, 20);
     senddata(devID, DIRECTION_RT);
-    ctrlright(50, 3, 10, 50);
+    ctrlright(50, 3, 100, 50);
     senddata(devID, DIRECTION_BW);
-    ctrlbackward(100, 3, 10, 20);
+    ctrlbackward(100, 3, 100, 20);
     senddata(devID, DIRECTION_LT);
-    ctrlleft(50, 3, 10, 50);
+    ctrlleft(50, 3, 100, 50);
 
   }
 
@@ -136,6 +132,7 @@ int degerr(int input) {
   }
 }
 void adjustCarToNorth(int angle) {
+
   int trial = 0;
   int compassDirection = compasstranslate(getCompass(), angle);
   int compassDiff;
@@ -144,18 +141,20 @@ void adjustCarToNorth(int angle) {
   while (compassDirection != 0) {
 
     compassDirection = compasstranslate(getCompass(), angle);
-    compassDiff = compassDirection;
-    clockwise = false;
-    if (compassDirection > 1800) {
-      compassDiff = 360 - compassDirection;
-      clockwise = true;
-    }
+
+    compassDiff = degerr(compassDirection);
+    //    clockwise = false;
+    clockwise = compassDirection > 1800;
+    //    if (compassDirection > 1800) {
+    //      compassDiff = 3600 - compassDirection;
+    //      clockwise = true;
+    //    }
     targetspeed = 130;
-    if (compassDiff < 50) {
-      targetspeed = map(compassDiff, 0, 50, 30, 130);
+    if (compassDiff < 500) {
+      targetspeed = map(compassDiff, 0, 500, 30, 130);
     }
     trial++;
-    Serial.println(trial);
+
     if (trial > 150) {
       selfRotationAntiClockwise(160);
       compassDirection = 1;
@@ -189,8 +188,8 @@ void move(char motor, String direction, int speed) {
 void move2(char motor, String direction, int speed) {
   boolean modeAD;
   boolean modeBC;
-  byte pwmAD;
-  byte pwmBC;
+  int pwmAD;
+  int pwmBC;
   if (direction.equals("clockwise")) {
     modeAD = HIGH;
     modeBC = LOW;
@@ -250,6 +249,7 @@ void forward(int speed) {
   move('D', "clockwise", speed);
 }
 void ctrlforward(int speed, int wait, int acceptance, int cycle) {
+
   int compass;
   int correction;
   for (int i = 0; i < cycle; i++) {
@@ -257,7 +257,7 @@ void ctrlforward(int speed, int wait, int acceptance, int cycle) {
     correction = clip255(speed * (acceptance - degerr(compass)) / acceptance);
 
     correction = max(correction, -speed);
-
+    Serial.println(correction);
 
     if (compass < 1800) {
       move('A', "clockwise", speed);
@@ -399,27 +399,26 @@ void selfRotationAntiClockwise(int speed) {
 }
 
 int getCompass() {
-
-  char valueBytes[8];
+  char valueints[8];
   int degree = 0;
   int counter = 0;
-  byte value = 0;
+  int value = 0;
 
   Serial1.write(0x31);
   if (Serial1.available()) {
     Serial1.read();
   }
-  while (value == 0) {
+  while (true) {
     if (Serial1.available()) {
-      valueBytes[counter] = Serial1.read();
+      valueints[counter] = Serial1.read();
       counter = (counter + 1) % 8;
-      if (counter == 0) {
-        degree = (valueBytes[2] - 48) * 1000 + (valueBytes[3] - 48) * 100 + (valueBytes[4] - 48) * 10 + (valueBytes[6] - 48);
-        value = 1;
+      if (!counter) {
+        degree = (valueints[2] - 48) * 1000 + (valueints[3] - 48) * 100 + (valueints[4] - 48) * 10 + (valueints[6] - 48);
+        return degree;
       }
     }
   }
-  return degree;
+
 }
 
 
@@ -517,12 +516,11 @@ void senddata(String id, char wasd) {
 
 String mac2String(byte ar[]) {
   String s;
-  for (byte i = 5; i >= 0; i--)
+  for (byte i = 0; i < 6; i++)
   {
     char buf[3];
     sprintf(buf, "%2X", ar[i]);
     s += buf;
-    //if (i < 5) s += ':';
   }
   return s;
 }
