@@ -131,24 +131,21 @@ int degerr(int input) {
     return 3600 - input;
   }
 }
+
+
 void adjustCarToNorth(int angle) {
 
   int trial = 0;
-  int compassDirection = compasstranslate(getCompass(), angle);
+  int compassDirection = 1;
   int compassDiff;
   bool clockwise;
   int targetspeed;
-  while (compassDirection != 0) {
+  while (compassDirection) {
 
     compassDirection = compasstranslate(getCompass(), angle);
 
     compassDiff = degerr(compassDirection);
-    //    clockwise = false;
     clockwise = compassDirection > 1800;
-    //    if (compassDirection > 1800) {
-    //      compassDiff = 3600 - compassDirection;
-    //      clockwise = true;
-    //    }
     targetspeed = 130;
     if (compassDiff < 500) {
       targetspeed = map(compassDiff, 0, 500, 30, 130);
@@ -156,52 +153,46 @@ void adjustCarToNorth(int angle) {
     trial++;
 
     if (trial > 150) {
-      selfRotationAntiClockwise(160);
+      selfRotation(160);
       compassDirection = 1;
       delay(75);
       trial = 0;
     }
     targetspeed = min(targetspeed, trial * 5);
     if (clockwise) {
-      selfRotationAntiClockwise(targetspeed);
+      selfRotation(-targetspeed);
     } else {
-      selfRotationClockwise(targetspeed);
+      selfRotation(targetspeed);
     }
   }
 }
 
-void move(char motor, String direction, int speed) {
+
+
+void newmove(char motor, int speed) {
   if (speed < 0) {
-    if (direction.equals("clockwise")) {
-      move2(motor, "anti-clockwise", -speed);
-    } else if (direction.equals("anti-clockwise")) {
-      move2(motor, "clockwise", -speed);
-    } else {
-      return;
-    }
+    move2(motor, false, -speed);
   } else {
-    move2(motor, direction, speed);
+    move2(motor, true, speed);
   }
 }
 
 
-void move2(char motor, String direction, int speed) {
+void move2(char motor, boolean clockwise, byte speed) {
   boolean modeAD;
   boolean modeBC;
-  int pwmAD;
-  int pwmBC;
-  if (direction.equals("clockwise")) {
+  byte pwmAD;
+  byte pwmBC;
+  if (clockwise) {
     modeAD = HIGH;
     modeBC = LOW;
     pwmAD = 255 - speed;
-    pwmBC = 0 + speed;
-  } else if (direction.equals("anti-clockwise")) {
+    pwmBC = speed;
+  } else {
     modeAD = LOW;
     modeBC = HIGH;
-    pwmAD = 0 + speed;
+    pwmAD = speed;
     pwmBC = 255 - speed;
-  } else {
-    return;
   }
 
   switch (motor) {
@@ -221,8 +212,7 @@ void move2(char motor, String direction, int speed) {
       digitalWrite(SCIN2, modeBC);
       analogWrite(SCIN1, pwmBC);
       break;
-    default:
-      break;
+
   }
 }
 
@@ -242,45 +232,31 @@ void start() {
   digitalWrite(ENABLE, HIGH);
 }
 
-void forward(int speed) {
-  move('A', "clockwise", speed);
-  move('B', "clockwise", speed);
-  move('C', "clockwise", speed);
-  move('D', "clockwise", speed);
-}
+
 void ctrlforward(int speed, int wait, int acceptance, int cycle) {
 
   int compass;
   int correction;
   for (int i = 0; i < cycle; i++) {
     compass = getCompass();
-    correction = clip255(speed * (acceptance - degerr(compass)) / acceptance);
-
-    correction = max(correction, -speed);
-    Serial.println(correction);
-
+    correction = clip255(speed * max(-acceptance, (acceptance - degerr(compass))) / acceptance);
     if (compass < 1800) {
-      move('A', "clockwise", speed);
-      move('B', "clockwise", speed);
-      move('C', "clockwise", correction);
-      move('D', "clockwise", correction);
+      newmove('A', speed);
+      newmove('B', speed);
+      newmove('C', correction);
+      newmove('D', correction);
     } else {
-      move('A', "clockwise", correction);
-      move('B', "clockwise", correction);
-      move('C', "clockwise", speed);
-      move('D', "clockwise", speed);
+      newmove('A', correction);
+      newmove('B', correction);
+      newmove('C', speed);
+      newmove('D', speed);
     }
     delay(wait);
 
   }
 
 }
-void backward(int speed) {
-  move('A', "anti-clockwise", speed);
-  move('B', "anti-clockwise", speed);
-  move('C', "anti-clockwise", speed);
-  move('D', "anti-clockwise", speed);
-}
+
 
 
 void ctrlbackward(int speed, int wait, int acceptance, int cycle) {
@@ -288,19 +264,17 @@ void ctrlbackward(int speed, int wait, int acceptance, int cycle) {
   int correction;
   for (int i = 0; i < cycle; i++) {
     compass = getCompass();
-    correction = clip255(speed * (acceptance - degerr(compass)) / acceptance);
-    correction = max(correction, -speed);
-
+    correction = clip255(speed * max(-acceptance, (acceptance - degerr(compass))) / acceptance);
     if (compass > 1800) {
-      move('A', "anti-clockwise", speed);
-      move('B', "anti-clockwise", speed);
-      move('C', "anti-clockwise", correction);
-      move('D', "anti-clockwise", correction);
+      newmove('A', -speed);
+      newmove('B', -speed);
+      newmove('C', -correction);
+      newmove('D', -correction);
     } else {
-      move('A', "anti-clockwise", correction);
-      move('B', "anti-clockwise", correction);
-      move('C', "anti-clockwise", speed);
-      move('D', "anti-clockwise", speed);
+      newmove('A', -correction);
+      newmove('B', -correction);
+      newmove('C', -speed);
+      newmove('D', -speed);
     }
     delay(wait);
 
@@ -308,48 +282,28 @@ void ctrlbackward(int speed, int wait, int acceptance, int cycle) {
 
 }
 
-//
-void right(int speed) {
-  move('A', "anti-clockwise", speed);
-  move('B', "clockwise", speed);
-  move('C', "anti-clockwise", speed);
-  move('D', "clockwise", speed);
-}
 void ctrlright(int speed, int wait, int acceptance, int cycle) {
   int compass;
   int correction;
   for (int i = 0; i < cycle; i++) {
     compass = getCompass();
     if (compass > 1800) {
-      correction = clip255(speed * (acceptance - (3600 - compass)) / acceptance);
+      correction = clip255(speed * max(-acceptance, (acceptance - 3600 + compass)) / acceptance);
+      newmove('A', -speed);
+      newmove('B', correction);
+      newmove('C', -correction);
+      newmove('D', speed);
     } else {
-      correction = clip255(speed * (acceptance - compass) / acceptance);
-    }
-
-    correction = max(correction, -speed);
-
-
-    if (compass < 1800) {
-      move('A', "anti-clockwise", correction);
-      move('B', "clockwise", speed);
-      move('C', "anti-clockwise", speed);
-      move('D', "clockwise", correction);
-    } else {
-      move('A', "anti-clockwise", speed);
-      move('B', "clockwise", correction);
-      move('C', "anti-clockwise", correction);
-      move('D', "clockwise", speed);
+      correction = clip255(speed * max(-acceptance, (acceptance - compass)) / acceptance);
+      newmove('A', -correction);
+      newmove('B', speed);
+      newmove('C', -speed);
+      newmove('D', correction);
     }
     delay(wait);
 
   }
 
-}
-void left(int speed) {
-  move('B', "anti-clockwise", speed);
-  move('D', "anti-clockwise", speed);
-  move('A', "clockwise", speed);
-  move('C', "clockwise", speed);
 }
 
 void ctrlleft(int speed, int wait, int acceptance, int cycle) {
@@ -358,24 +312,24 @@ void ctrlleft(int speed, int wait, int acceptance, int cycle) {
   for (int i = 0; i < cycle; i++) {
     compass = getCompass();
     if (compass > 1800) {
-      correction = clip255(speed * (acceptance - (3600 - compass)) / acceptance);
+      correction = clip255(speed * max(-acceptance, (acceptance - 3600 + compass)) / acceptance);
     } else {
-      correction = clip255(speed * (acceptance - compass) / acceptance);
+      correction = clip255(speed * max(-acceptance, (acceptance - compass)) / acceptance);
     }
 
 
 
     correction = max(correction, -speed);
     if (compass < 1800) {
-      move('A', "clockwise", speed);
-      move('B', "anti-clockwise", correction);
-      move('C', "clockwise", correction);
-      move('D', "anti-clockwise", speed);
+      newmove('A', speed);
+      newmove('B', -correction);
+      newmove('C', correction);
+      newmove('D', -speed);
     } else {
-      move('A', "clockwise", correction);
-      move('B', "anti-clockwise", speed);
-      move('C', "clockwise", speed);
-      move('D', "anti-clockwise", correction);
+      newmove('A', correction);
+      newmove('B', -speed);
+      newmove('C', speed);
+      newmove('D', -correction);
     }
     delay(wait);
 
@@ -384,23 +338,15 @@ void ctrlleft(int speed, int wait, int acceptance, int cycle) {
 }
 
 
-void selfRotationClockwise(int speed) {
-  move('C', "anti-clockwise", speed);
-  move('D', "anti-clockwise", speed);
-  move('A', "clockwise", speed);
-  move('B', "clockwise", speed);
-}
-
-void selfRotationAntiClockwise(int speed) {
-  move('A', "anti-clockwise", speed);
-  move('B', "anti-clockwise", speed);
-  move('C', "clockwise", speed);
-  move('D', "clockwise", speed);
+void selfRotation(int speed) {
+  newmove('C', -speed);
+  newmove('D', -speed);
+  newmove('A', speed);
+  newmove('B', speed);
 }
 
 int getCompass() {
   char valueints[8];
-  int degree = 0;
   int counter = 0;
   int value = 0;
 
@@ -413,8 +359,7 @@ int getCompass() {
       valueints[counter] = Serial2.read();
       counter = (counter + 1) % 8;
       if (!counter) {
-        degree = (valueints[2] - 48) * 1000 + (valueints[3] - 48) * 100 + (valueints[4] - 48) * 10 + (valueints[6] - 48);
-        return degree;
+        return (valueints[2] - 48) * 1000 + (valueints[3] - 48) * 100 + (valueints[4] - 48) * 10 + (valueints[6] - 48);
       }
     }
   }
@@ -501,12 +446,6 @@ void senddata(String id, char wasd) {
   id.toCharArray(plain, id.length() + 1);
   if (client.connect(host, 9999)) {
     client.print(plain);
-    //    client.print('#');
-    //    client.print(Direction);
-    //    client.print('#');
-    //    client.print('#');
-    //    client.print('#');
-    //    client.print('#');
     client.stop();
   }
   digitalWrite(ENABLE, HIGH);
