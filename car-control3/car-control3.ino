@@ -70,6 +70,7 @@ void setup() {
 
   Serial.print("UDP broadcast on 9876");
   Udp.begin(9876);
+  // Wait for UDP to know IP of remote host
   while (true) {
     Serial.print(".");
     delay(400);
@@ -78,7 +79,10 @@ void setup() {
       Serial.println();
       Serial.print("IP found: ");
       host = Udp.remoteIP();
+      // Got IP
       Serial.println(host);
+
+      // Break out of loop
       break;
     }
   }
@@ -94,7 +98,7 @@ void setup() {
   pinMode(SBIN2, OUTPUT);
   pinMode(SCIN2, OUTPUT);
   pinMode(SDIN2, OUTPUT);
-
+  // Init analog pins and enable pin
   start();
 }
 
@@ -103,6 +107,7 @@ void loop() {
   adjustCarToNorth();
 
   while (true) {
+    //Just a loop currently
     senddata(devID, DIRECTION_FW);
     ctrlforward(100, 3, 100, 20);
     senddata(devID, DIRECTION_RT);
@@ -116,14 +121,22 @@ void loop() {
 
 }
 
-
+// constrain input from -255 to 255
 int clip255(int input) {
   return constrain(input, -255, 255);
 }
+
+//translate compass angles
+//e.g. compasstranslate(900,900) = 1800;
+//     compasstranslate(2700,1000) = 100;
 int compasstranslate(int compass, int translate) {
   return (compass + translate) % 3600;
 
 }
+
+//returns error from 0
+//degerr(2800) = 600;
+//degerr(800) = 900;
 int degerr(int input) {
   if (input < 1800) {
     return input;
@@ -132,44 +145,61 @@ int degerr(int input) {
   }
 }
 
-
+//adjustCarToNorth(900) rotates the car to 90 degrees
+//parameter optional
 void adjustCarToNorth(int angle) {
 
   int trial = 0;
+  //anti-jamming counter
   int compassDirection = 1;
+  //1 is placeholder
   int compassDiff;
   bool clockwise;
   int targetspeed;
   while (compassDirection) {
 
     compassDirection = compasstranslate(getCompass(), angle);
-
     compassDiff = degerr(compassDirection);
+    //get crucial values
+
+
     clockwise = compassDirection > 1800;
+    //get direction
     targetspeed = 130;
+    //placeholder speed
     if (compassDiff < 500) {
       targetspeed = map(compassDiff, 0, 500, 30, 130);
+      //speed slowdown after degerr < 500
     }
     trial++;
+    //add anti-jamming counter
 
     if (trial > 150) {
+      //must've jammed up
       selfRotation(160);
+      //kick it
       compassDirection = 1;
+      //add placeholder to prevent instant loop escape
       delay(75);
+      //arbitrary delay
       trial = 0;
+      //reset anti-jam
     }
     targetspeed = min(targetspeed, trial * 5);
+    //prevent sudden rough start by limiting the start speed
     if (clockwise) {
       selfRotation(-targetspeed);
     } else {
       selfRotation(targetspeed);
     }
+    //perform rotation
   }
 }
 
 
 
 void newmove(char motor, int speed) {
+  //negative number handler
   if (speed < 0) {
     move2(motor, false, -speed);
   } else {
@@ -195,6 +225,8 @@ void move2(char motor, boolean clockwise, byte speed) {
     pwmBC = 255 - speed;
   }
 
+  //decide the appropriate values for motor spin
+
   switch (motor) {
     case 'A':
       digitalWrite(SAIN2, modeAD);
@@ -212,7 +244,7 @@ void move2(char motor, boolean clockwise, byte speed) {
       digitalWrite(SCIN2, modeBC);
       analogWrite(SCIN1, pwmBC);
       break;
-
+      //apply values
   }
 }
 
@@ -220,6 +252,7 @@ void move2(char motor, boolean clockwise, byte speed) {
 
 void stop() {
   digitalWrite(ENABLE, LOW);
+  //enable pin emables when it is high 
 }
 
 void start() {
@@ -228,9 +261,26 @@ void start() {
   analogWrite(SBIN1, 0);
   analogWrite(SCIN1, 0);
   analogWrite(SDIN1, 0);
-
+  //write high enable, enable it
   digitalWrite(ENABLE, HIGH);
 }
+
+
+/*
+
+For all the ctrl series of the movement set
+gets the degerr
+as degerr gets large, the movement slowly turn into selfrotation
+the as it fixes itself it gets into siderotation
+then finally normal directional movement
+I suggest you to lift up the car to see the error compensation in action
+Details cannot be explained easily as serious code golfing was in place, 
+for the sake of speedy response. 
+
+
+
+*/
+
 
 
 void ctrlforward(int speed, int wait, int acceptance, int cycle) {
@@ -337,14 +387,14 @@ void ctrlleft(int speed, int wait, int acceptance, int cycle) {
 
 }
 
-
+//performs rotation, negative values allowed
 void selfRotation(int speed) {
   newmove('C', -speed);
   newmove('D', -speed);
   newmove('A', speed);
   newmove('B', speed);
 }
-
+//interfaces with the serial2, stores into buffer. 
 int getCompass() {
   char valueints[8];
   int counter = 0;
@@ -367,7 +417,7 @@ int getCompass() {
 }
 
 
-
+//premade functions by wifiesp demo BEGINS
 void printMacAddress()
 {
   // get your MAC address
@@ -434,6 +484,11 @@ void printEncryptionType(int thisType) {
   Serial.println();
 }
 
+//ENDS
+
+
+//Sends data through TCP, no ultrasound sent yet
+
 void senddata(String id, char wasd) {
   digitalWrite(ENABLE, LOW);
   id.concat('#');
@@ -452,7 +507,7 @@ void senddata(String id, char wasd) {
 
 }
 
-
+//Mac to ID
 String mac2String(byte ar[]) {
   String s;
   for (byte i = 0; i < 6; i++)
